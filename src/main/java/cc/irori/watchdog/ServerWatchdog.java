@@ -87,7 +87,9 @@ public class ServerWatchdog {
         String shutdownReason = "Unknown";
 
         World world = Universe.get().getDefaultWorld();
-        if (lastDefaultWorld != world) {
+        if (world == null) {
+            world = lastDefaultWorld;
+        } else if (lastDefaultWorld != world) {
             LOGGER.atInfo().log("Default world changed to " + world.getName());
             lastDefaultWorld = world;
         }
