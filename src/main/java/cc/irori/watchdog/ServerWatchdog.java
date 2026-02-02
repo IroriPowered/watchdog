@@ -138,7 +138,7 @@ public class ServerWatchdog {
     }
 
     private void handleShutdownTimeout(WatchdogConfig config) throws InterruptedException {
-        Thread.sleep(config.shutdownTimeoutSeconds);
+        Thread.sleep(config.shutdownTimeoutSeconds * 1000L);
         LOGGER.atSevere().log("Shutdown cannot proceed. Forcing exit.");
         Runtime.getRuntime().halt(1);
     }
