@@ -1,0 +1,5 @@
+[versions]
+hytale = "+"
+
+[libraries]
+hytale = { group = "com.hypixel.hytale", name = "Server", version.ref = "hytale" }
