@@ -87,12 +87,15 @@ public class ServerWatchdog {
         String shutdownReason = "Unknown";
 
         World world = Universe.get().getDefaultWorld();
-        if (world == null) {
-            world = lastDefaultWorld;
+        if (world == null || !world.isAlive()) {
+            shutdown = true;
+            shutdownReason = "Default world " + (world != null ? world.getName() + " " : "") + "is not alive.";
         } else if (lastDefaultWorld != world) {
             LOGGER.atInfo().log("Default world changed to " + world.getName());
             lastDefaultWorld = world;
         }
+
+        checkAndShutdown(config, shutdownReason, shutdown);
 
         try {
             world.execute(() -> {
@@ -103,18 +106,22 @@ public class ServerWatchdog {
             shutdownReason = "World " + world.getName() + " was unable to accept tasks. The world may have been crashed.";
         }
 
-        if (!shutdown) {
-            Thread.sleep(5000);
-            long elapsed = System.currentTimeMillis() - lastResponse.get();
+        checkAndShutdown(config, shutdownReason, shutdown);
 
-            if (elapsed > config.watchTimeoutSeconds * 1000L) {
-                shutdown = true;
-                shutdownReason = "World" + world.getName() + " did not respond for " + (elapsed / 1000) + " seconds.";
-            }
+        Thread.sleep(5000);
+        long elapsed = System.currentTimeMillis() - lastResponse.get();
+
+        if (elapsed > config.watchTimeoutSeconds * 1000L) {
+            shutdown = true;
+            shutdownReason = "World" + world.getName() + " did not respond for " + (elapsed / 1000) + " seconds.";
         }
 
+        checkAndShutdown(config, shutdownReason, shutdown);
+    }
+
+    private void checkAndShutdown(WatchdogConfig config, String reason, boolean shutdown) throws InterruptedException {
         if (shutdown) {
-            triggerWatchdog(config, shutdownReason);
+            triggerWatchdog(config, reason);
         }
     }
 
