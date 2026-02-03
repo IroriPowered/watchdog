@@ -7,6 +7,7 @@ public class WatchdogCommand extends AbstractCommandCollection {
 
     public WatchdogCommand() {
         super("watchdog", "watchdog.commands.watchdog.desc");
+        addSubCommand(new WatchdogInfoCommand());
         addSubCommand(new WatchdogStateCommand());
         addSubCommand(new WatchdogEnableCommand());
         addSubCommand(new WatchdogDisableCommand());

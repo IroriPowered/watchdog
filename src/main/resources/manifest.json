@@ -1,7 +1,7 @@
 {
     "Group": "IroriPowered",
     "Name": "Watchdog",
-    "Version": "1.0.3",
+    "Version": "1.0.4",
     "Website": "https://www.irori.cc/",
     "Description": "Monitor server and world crashes.",
     "Main": "cc.irori.watchdog.WatchdogPlugin",
