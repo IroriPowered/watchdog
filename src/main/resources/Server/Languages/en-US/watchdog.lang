@@ -1,3 +1,7 @@
+commands.watchdog.state.desc = Shows the current state of server watchdog
+commands.watchdog.state.disabled = Server watchdog is disabled.
+commands.watchdog.state.activating = Server watchdog is activating.
+commands.watchdog.state.running = Server watchdog is running.
 commands.watchdog.desc = Watchdog command
 commands.watchdog.enable.desc = Enables the watchdog.
 commands.watchdog.enable.success = Watchdog enabled successfully.

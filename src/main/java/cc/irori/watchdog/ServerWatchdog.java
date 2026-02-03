@@ -18,9 +18,20 @@ public class ServerWatchdog {
     private Thread watchdogThread;
     private World lastDefaultWorld;
 
+    private volatile State state = State.ACTIVATING;
+
     public ServerWatchdog() {
         lastDefaultWorld = Universe.get().getDefaultWorld();
         start();
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void shutdown() {
+        LOGGER.atInfo().log("Stopping server watchdog");
+        watchdogThread.interrupt();
     }
 
     private void start() {
@@ -30,18 +41,15 @@ public class ServerWatchdog {
         watchdogThread.start();
     }
 
-    public void shutdown() {
-        LOGGER.atInfo().log("Stopping server watchdog");
-        watchdogThread.interrupt();
-    }
-
     private void runWatchdog() {
         WatchdogConfig config = WatchdogPlugin.getInstance().getConfig().get();
+        state = State.ACTIVATING;
 
         try {
             LOGGER.atInfo().log("Watchdog will activate in " + config.activateSeconds + " seconds");
             Thread.sleep(config.activateSeconds * 1000L);
 
+            state = State.RUNNING;
             LOGGER.atInfo().log("Watchdog running");
             while (true) {
                 watchForAutoRestartingWorlds(config);
@@ -150,5 +158,10 @@ public class ServerWatchdog {
         Thread.sleep(config.shutdownTimeoutSeconds * 1000L);
         LOGGER.atSevere().log("Shutdown cannot proceed. Forcing exit.");
         Runtime.getRuntime().halt(1);
+    }
+
+    public enum State {
+        ACTIVATING,
+        RUNNING
     }
 }

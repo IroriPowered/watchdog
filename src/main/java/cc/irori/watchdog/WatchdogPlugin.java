@@ -6,6 +6,8 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.util.Config;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
+import javax.annotation.Nullable;
+
 public class WatchdogPlugin extends JavaPlugin {
 
     private static WatchdogPlugin instance;
@@ -63,6 +65,10 @@ public class WatchdogPlugin extends JavaPlugin {
             return true;
         }
         return false;
+    }
+
+    public @Nullable ServerWatchdog getWatchdog() {
+        return watchdog;
     }
 
     public static WatchdogPlugin getInstance() {
