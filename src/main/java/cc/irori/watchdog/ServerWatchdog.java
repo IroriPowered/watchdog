@@ -13,14 +13,17 @@ public class ServerWatchdog {
 
     private static final HytaleLogger LOGGER = Logs.logger();
 
-    private final Thread watchdogThread;
     private final AtomicLong lastResponse = new AtomicLong(System.currentTimeMillis());
 
+    private Thread watchdogThread;
     private World lastDefaultWorld;
 
     public ServerWatchdog() {
         lastDefaultWorld = Universe.get().getDefaultWorld();
+        start();
+    }
 
+    private void start() {
         LOGGER.atInfo().log("Starting server watchdog (default world: " + lastDefaultWorld.getName() + ")");
         watchdogThread = new Thread(this::runWatchdog, "Irori-Server-Watchdog");
         watchdogThread.setDaemon(true);
@@ -46,6 +49,9 @@ public class ServerWatchdog {
                 watchForDefaultWorld(config);
             }
         } catch (InterruptedException ignored) {
+        } catch (Throwable t) {
+            LOGGER.atSevere().withCause(t).log("Watchdog encountered an error, restarting");
+            start();
         }
     }
 
@@ -91,7 +97,7 @@ public class ServerWatchdog {
             shutdown = true;
             shutdownReason = "Default world " + (world != null ? world.getName() + " " : "") + "is not alive.";
         } else if (lastDefaultWorld != world) {
-            LOGGER.atInfo().log("Default world changed to " + world.getName());
+            LOGGER.atInfo().log("Default world changed to " + world.getName() + " (" + world.hashCode() + ")");
             lastDefaultWorld = world;
         }
 
