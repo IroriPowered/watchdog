@@ -57,10 +57,6 @@ public class ServerWatchdog {
 
     private void watchForAutoRestartingWorlds(WatchdogConfig config) throws InterruptedException {
         for (String worldName : config.autoRestartingWorlds) {
-            if (worldName.equals(Universe.get().getDefaultWorld().getName())) {
-                continue;
-            }
-
             World world = Universe.get().getWorld(worldName);
             if (world == null || !world.isAlive()) {
                 if (!Universe.get().isWorldLoadable(worldName)) {
