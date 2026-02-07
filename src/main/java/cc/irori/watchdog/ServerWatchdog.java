@@ -7,13 +7,18 @@ import com.hypixel.hytale.server.core.ShutdownReason;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ServerWatchdog {
 
+    private static final long WORLD_RESPONSE_ERROR = -1L;
+
     private static final HytaleLogger LOGGER = Logs.logger();
 
-    private final AtomicLong lastResponse = new AtomicLong(System.currentTimeMillis());
+    private final AtomicLong defaultWorldResponse = new AtomicLong(System.currentTimeMillis());
+    private final Map<String, Long> worldResponseMap = new ConcurrentHashMap<>();
 
     private Thread watchdogThread;
     private World lastDefaultWorld;
@@ -52,9 +57,10 @@ public class ServerWatchdog {
             state = State.RUNNING;
             LOGGER.atInfo().log("Watchdog running");
             while (true) {
-                watchForAutoRestartingWorlds(config);
                 watchForServerShutdown(config);
+                requestWorldResponse(config);
                 watchForDefaultWorld(config);
+                watchForAutoRestartingWorlds(config);
             }
         } catch (InterruptedException ignored) {
         } catch (Throwable t) {
@@ -63,16 +69,54 @@ public class ServerWatchdog {
         }
     }
 
+    private void requestWorldResponse(WatchdogConfig config) throws InterruptedException {
+        for (String worldName : config.autoRestartingWorlds) {
+            World world = Universe.get().getWorld(worldName);
+            if (world == null) {
+                continue;
+            }
+
+            worldResponseMap.computeIfAbsent(worldName, key -> WORLD_RESPONSE_ERROR);
+            try {
+                world.execute(() -> worldResponseMap.put(worldName, System.currentTimeMillis()));
+            } catch (Exception ignored) {}
+        }
+    }
+
     private void watchForAutoRestartingWorlds(WatchdogConfig config) throws InterruptedException {
         for (String worldName : config.autoRestartingWorlds) {
             World world = Universe.get().getWorld(worldName);
+            Long response = worldResponseMap.get(worldName);
+
+            boolean restart = false;
             if (world == null || !world.isAlive()) {
+                restart = true;
+            } else if (response != null && response == WORLD_RESPONSE_ERROR) {
+                LOGGER.atSevere().log("World " + worldName + " was unable to accept tasks. The world may have been crashed.");
+                restart = true;
+            } else if (response != null) {
+                long elapsed = System.currentTimeMillis() - response;
+                if (elapsed > config.watchTimeoutSeconds * 1000L) {
+                    LOGGER.atSevere().log("World " + worldName + " did not respond for " + (elapsed / 1000) + " seconds.");
+                    restart = true;
+                }
+            }
+
+            if (restart) {
+                worldResponseMap.remove(worldName);
                 if (!Universe.get().isWorldLoadable(worldName)) {
                     if (!config.suppressInvalidWorldWarnings) {
                         LOGGER.atWarning().log("World " + worldName + " is not loadable");
                     }
                     continue;
                 }
+
+                LOGGER.atInfo().log("Attempting to unload world: " + worldName);
+                try {
+                    Universe.get().removeWorld(worldName);
+                } catch (NullPointerException ignored) {}
+
+                Thread.sleep(1000L);
 
                 LOGGER.atInfo().log("Restarting world: " + worldName);
                 try {
@@ -109,7 +153,7 @@ public class ServerWatchdog {
 
         try {
             world.execute(() -> {
-                lastResponse.set(System.currentTimeMillis());
+                defaultWorldResponse.set(System.currentTimeMillis());
             });
         } catch (Exception e) {
             shutdown = true;
@@ -119,7 +163,7 @@ public class ServerWatchdog {
         checkAndShutdown(config, shutdownReason, shutdown);
 
         Thread.sleep(5000);
-        long elapsed = System.currentTimeMillis() - lastResponse.get();
+        long elapsed = System.currentTimeMillis() - defaultWorldResponse.get();
 
         if (elapsed > config.watchTimeoutSeconds * 1000L) {
             shutdown = true;
