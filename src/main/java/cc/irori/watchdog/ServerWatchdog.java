@@ -111,12 +111,13 @@ public class ServerWatchdog {
                     continue;
                 }
 
+                LOGGER.atSevere().log("========== WORLD STUCK DETECTED ==========");
+                dumpThreads(config);
+
                 LOGGER.atInfo().log("Attempting to unload world: " + worldName);
                 try {
                     Universe.get().removeWorld(worldName);
                 } catch (NullPointerException ignored) {}
-
-                Thread.sleep(1000L);
 
                 LOGGER.atInfo().log("Restarting world: " + worldName);
                 try {
@@ -167,7 +168,7 @@ public class ServerWatchdog {
 
         if (elapsed > config.watchTimeoutSeconds * 1000L) {
             shutdown = true;
-            shutdownReason = "World" + world.getName() + " did not respond for " + (elapsed / 1000) + " seconds.";
+            shutdownReason = "World " + world.getName() + " did not respond for " + (elapsed / 1000) + " seconds.";
         }
 
         checkAndShutdown(config, shutdownReason, shutdown);
@@ -180,10 +181,18 @@ public class ServerWatchdog {
     }
 
     private void triggerWatchdog(WatchdogConfig config, String reason) throws InterruptedException {
-        LOGGER.atSevere().log("========== WATCHDOG DETECTED A STUCK ==========");
+        LOGGER.atSevere().log("========== SERVER STUCK DETECTED ==========");
         LOGGER.atSevere().log("Reason: " + reason);
         LOGGER.atSevere().log("Dumping threads and shutting down the server...");
 
+        dumpThreads(config);
+
+        Thread.sleep(5000);
+        HytaleServer.get().shutdownServer(ShutdownReason.CRASH.withMessage("Watchdog triggered a shutdown"));
+        handleShutdownTimeout(config);
+    }
+
+    private void dumpThreads(WatchdogConfig config) {
         Thread.getAllStackTraces().forEach((thread, stackTrace) -> {
             if (config.dumpAllThreads || thread.getName().startsWith("WorldThread")) {
                 LOGGER.atSevere().log("Thread: " + thread.getName() + " (ID: " + thread.getId() + "):");
@@ -192,10 +201,6 @@ public class ServerWatchdog {
                 }
             }
         });
-
-        Thread.sleep(5000);
-        HytaleServer.get().shutdownServer(ShutdownReason.CRASH.withMessage("Watchdog triggered a shutdown"));
-        handleShutdownTimeout(config);
     }
 
     private void handleShutdownTimeout(WatchdogConfig config) throws InterruptedException {
